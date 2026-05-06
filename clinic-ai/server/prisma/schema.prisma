@@ -1,0 +1,443 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PATIENT
+  DOCTOR
+  ADMIN
+}
+
+enum OtpPurpose {
+  VERIFY_EMAIL
+  VERIFY_PHONE
+  RESET_PASSWORD
+}
+
+enum OtpChannel {
+  EMAIL
+  SMS
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  DONE
+  CANCELED
+}
+
+enum SlotStatus {
+  AVAILABLE
+  BOOKED
+  BLOCKED
+}
+
+enum KbDocumentType {
+  TEXT
+  PDF
+}
+
+enum KbDocumentStatus {
+  PENDING
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum NotificationType {
+  APPOINTMENT_NEW
+  APPOINTMENT_CONFIRMED
+  APPOINTMENT_CANCELLED
+  APPOINTMENT_DONE
+  APPOINTMENT_RESCHEDULED
+  APPOINTMENT_EXPIRING
+  APPOINTMENT_AUTO_CANCELLED
+  SLOTS_GENERATED
+}
+
+model User {
+  id           String  @id @default(cuid())
+  email        String  @unique
+  passwordHash String
+  role         Role
+  isActive     Boolean @default(true)
+
+  fullName        String?
+  phone           String?
+  doctorProfile   DoctorProfile?
+  emailVerifiedAt DateTime?
+  phoneVerifiedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  refreshTokens         RefreshToken[]
+  otps                  OtpCode[]
+  passwordResetSessions PasswordResetSession[]
+  appointments          Appointment[]
+  chatSessions          ChatSession[]
+  notifications         Notification[]
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  revokedAt DateTime?
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, expiresAt])
+}
+
+model OtpCode {
+  id          String     @id @default(cuid())
+  userId      String
+  channel     OtpChannel
+  purpose     OtpPurpose
+  target      String
+  codeHash    String
+  attempts    Int        @default(0)
+  maxAttempts Int        @default(5)
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime   @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, purpose, createdAt])
+  @@index([target, purpose, createdAt])
+}
+
+enum SignupStatus {
+  PENDING
+  VERIFIED
+}
+
+model SignupSession {
+  id           String       @id @default(cuid())
+  email        String
+  fullName     String
+  phone        String?
+  passwordHash String
+  status       SignupStatus @default(PENDING)
+
+  expiresAt DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  otps SignupOtpCode[]
+
+  @@unique([email])
+  @@index([expiresAt])
+}
+
+model SignupOtpCode {
+  id          String    @id @default(cuid())
+  signupId    String
+  codeHash    String
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(5)
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  signup SignupSession @relation(fields: [signupId], references: [id], onDelete: Cascade)
+
+  @@index([signupId, createdAt])
+}
+
+model PasswordResetSession {
+  id         String    @id @default(cuid())
+  userId     String
+  email      String
+  expiresAt  DateTime
+  verifiedAt DateTime?
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([email, createdAt])
+}
+
+model Specialty {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  doctors  DoctorProfile[]
+  services Service[]
+
+  @@index([name])
+}
+
+model Service {
+  id              String  @id @default(cuid())
+  name            String
+  description     String?
+  price           Int
+  durationMinutes Int
+  specialty       String?
+  specialtyId     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  specialtyRef Specialty? @relation(fields: [specialtyId], references: [id], onDelete: SetNull)
+  doctors      DoctorService[]
+  slots        Slot[]
+  appointments Appointment[]
+
+  @@index([name])
+  @@index([specialty])
+  @@index([specialtyId])
+}
+
+model DoctorService {
+  doctorId  String
+  serviceId String
+
+  doctor  DoctorProfile @relation(fields: [doctorId], references: [id])
+  service Service       @relation(fields: [serviceId], references: [id])
+
+  @@id([doctorId, serviceId])
+}
+
+model DoctorProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  fullName  String
+  specialty String
+  specialtyId String?
+  bio       String?
+  avatarUrl String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  specialtyRef       Specialty? @relation(fields: [specialtyId], references: [id], onDelete: SetNull)
+  services           DoctorService[]
+  availabilityRanges AvailabilityRange[]
+  slots              Slot[]
+  appointments       Appointment[]
+
+  @@index([specialty])
+  @@index([specialtyId])
+}
+
+model AvailabilityRange {
+  id       String   @id @default(cuid())
+  doctorId String
+  title    String?
+  fromDate DateTime
+  toDate   DateTime
+  isActive Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  doctor DoctorProfile      @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  rules  AvailabilityRule[]
+  slots  Slot[]
+
+  @@index([doctorId, fromDate, toDate])
+}
+
+model AvailabilityRule {
+  id        String @id @default(cuid())
+  rangeId   String
+  dayOfWeek Int
+  startTime String
+  endTime   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  range AvailabilityRange @relation(fields: [rangeId], references: [id], onDelete: Cascade)
+
+  @@index([rangeId, dayOfWeek])
+}
+
+model Slot {
+  id        String     @id @default(cuid())
+  doctorId  String
+  serviceId String
+  startAt   DateTime
+  endAt     DateTime
+  status    SlotStatus @default(AVAILABLE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  doctor              DoctorProfile      @relation(fields: [doctorId], references: [id])
+  service             Service            @relation(fields: [serviceId], references: [id])
+  appointments        Appointment[]
+  availabilityRangeId String?
+  availabilityRange   AvailabilityRange? @relation(fields: [availabilityRangeId], references: [id], onDelete: SetNull)
+
+  @@unique([doctorId, startAt])
+  @@index([serviceId, startAt])
+  @@index([doctorId, status, startAt])
+  @@index([availabilityRangeId, startAt])
+}
+
+model Appointment {
+  id         String            @id @default(cuid())
+  patientId  String
+  doctorId   String
+  serviceId  String
+  slotId     String
+  status     AppointmentStatus @default(PENDING)
+  reason     String?
+  cancelNote String?
+
+  slotStartAt    DateTime
+  slotEndAt      DateTime
+  priceSnapshot  Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patient         User             @relation(fields: [patientId], references: [id])
+  doctor          DoctorProfile    @relation(fields: [doctorId], references: [id])
+  service         Service          @relation(fields: [serviceId], references: [id])
+  slot            Slot             @relation(fields: [slotId], references: [id])
+  previsitNote    PrevisitNote?
+  appointmentNote AppointmentNote?
+  chatSessions    ChatSession[]
+  notifications   Notification[]
+
+  @@index([patientId, status, slotStartAt])
+  @@index([doctorId, status, slotStartAt])
+  @@index([serviceId, slotStartAt])
+}
+
+/// Ghi chú sau khám của bác sĩ (chẩn đoán, đơn thuốc, lịch tái khám)
+model AppointmentNote {
+  id            String @id @default(cuid())
+  appointmentId String @unique
+
+  diagnosis         String?
+  prescriptionNotes String?
+  followUpDays      Int?
+  notes             String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+}
+
+model PrevisitNote {
+  id            String  @id @default(cuid())
+  appointmentId String  @unique
+  formData      Json
+  aiSummary     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+}
+
+model KbDocument {
+  id      String           @id @default(cuid())
+  title   String
+  type    KbDocumentType   @default(TEXT)
+  content String
+  status  KbDocumentStatus @default(PENDING)
+  error   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  chunks KbChunk[]
+
+  @@index([status, createdAt])
+}
+
+model KbChunk {
+  id         String  @id @default(cuid())
+  documentId String
+  content    String
+  meta       Json
+  embedding  Float[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  document KbDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+}
+
+model ChatSession {
+  id            String  @id @default(cuid())
+  userId        String
+  appointmentId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointment Appointment?  @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  messages    ChatMessage[]
+
+  @@index([userId, createdAt])
+  @@index([appointmentId])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  sessionId String
+  role      ChatRole
+  content   String
+  toolName  String?
+  toolArgs  Json?
+  citations Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  session ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+}
+
+model Notification {
+  id            String           @id @default(cuid())
+  userId        String
+  type          NotificationType
+  title         String
+  message       String
+  link          String?
+  appointmentId String?
+  isRead        Boolean          @default(false)
+
+  createdAt DateTime @default(now())
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+
+  @@index([userId, isRead, createdAt])
+  @@index([appointmentId])
+}

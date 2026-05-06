@@ -1,0 +1,66 @@
+
+#root {
+  --main-color-from: #fdba74;     /* from-orange-300 */
+  --main-color-to: #f97316;       /* to-orange-500 */
+  --main-color-hover-from: #ea580c; /* from-orange-600 */
+  --main-color-hover-to: #c2410c;
+   --main-gradient-from: #50C577;
+  --main-gradient-to: #2DBEFC;
+}
+.bg_button {
+  background-image: linear-gradient(to bottom, var(--main-color-from), var(--main-color-to));
+  color: white;
+  font-weight: 500;
+  border-radius: 9999px; /* tương đương rounded-full */
+ transition-property: all;
+  transition-duration: 0.3s;
+  transition-timing-function: ease-in-out;
+}
+.bg_button:hover {
+  background-image: linear-gradient(to right, var(--main-color-to), var(--main-color-hover-to));
+}
+.bg_main{
+  background-image: linear-gradient(to right, var(--main-gradient-from), var(--main-gradient-to));
+}
+.swiper-pagination-bullet {
+  background-color: #ccc !important;
+  opacity: 1 !important;
+
+  width: 17px !important;
+  height: 7px !important;
+  border-radius: 9999px !important;
+  transition:  0.3s ease-in-out !important;
+  
+}
+
+
+.swiper-pagination-bullet-active {
+ background-image: linear-gradient(to right, var(--main-gradient-from), var(--main-gradient-to)) !important; 
+  width: 60px !important;     
+}
+
+/* Chrome, Safari, Edge */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+input[type=number] {
+  -moz-appearance: textfield;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  display: none;
+  -webkit-appearance: none;
+}
+.accordion-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.accordion-content.open {
+  max-height: 500px; /* hoặc bất cứ giá trị nào bạn muốn */
+}

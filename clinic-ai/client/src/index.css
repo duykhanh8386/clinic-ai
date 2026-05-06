@@ -1,0 +1,42 @@
+@import "tailwindcss";
+@plugin "daisyui";
+
+@font-face {
+  font-family: Lato;
+  src: url("./assets/font/Lato-Regular_2.ttf");
+}
+
+@layer base {
+  html, body {
+    @apply font-latoV;
+  }
+}
+
+@theme {
+  --breakpoint-*:initial;
+  --breakpoint-none: 100%;
+  --breakpoint-mb1: 320px;
+  --breakpoint-mb2: 375px;
+  --breakpoint-mb3: 425px;
+  --breakpoint-mb4: 480px;
+  --breakpoint-mb5: 550px;
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-lg1: 1130px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+  --breakpoint-4k: 1920px;
+
+  --font-latoV: 'Lato', 'sans-serif';
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
